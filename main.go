@@ -2,66 +2,36 @@ package main
 
 import (
 	"bufio"
-	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"regexp"
-	"strings"
 	"time"
 
 	"github.com/kr/pretty"
 )
 
-// 5 MB
-const maxBufferLength = 5242880
-
 var (
 	RegexBeginningOfLine = regexp.MustCompile(`^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}.*LOG:`)
-	RegexEndOfQuery      = regexp.MustCompile(`;$`)
 )
 
-// Objective 1: Be able to parse a slow query from the logs.
-//		- In order to do this we can look for the LOG starting and
-//      read until the terminating ';\r\n' of the query.
-
-// 	{
-// 	 "Query Text": "SELECT count(*) from shards group by \nguid,\nid,\ncreated_at;",
-// 	 "Plan": {
-// 	   "Node Type": "Aggregate",
-// 	   "Strategy": "Hashed",
-// 	   "Partial Mode": "Simple",
-// 	   "Parallel Aware": false,
-// 	   "Startup Cost": 378.50,
-// 	   "Total Cost": 383.50,
-// 	   "Plan Rows": 500,
-// 	   "Plan Width": 57,
-// 	   "Group Key": ["id"],
-// 	   "Plans": [
-// 	     {
-// 	       "Node Type": "Seq Scan",
-// 	       "Parent Relationship": "Outer",
-// 	       "Parallel Aware": false,
-// 	       "Relation Name": "shards",
-// 	       "Alias": "shards",
-// 	       "Startup Cost": 0.00,
-// 	       "Total Cost": 376.00,
-// 	       "Plan Rows": 500,
-// 	       "Plan Width": 49
-// 	     }
-// 	   ]
-// 	 }
-// 	}
-type AutoExplainedQueryPlan struct {
-	QueryText string                 `json:"Query Text"`
-	Plan      map[string]interface{} `json:"Plan"`
+func HandlePostgresLogLine(logLine *PostgresLogLine) {
+	switch logLine.LogType {
+	case "statement", "execute", "parse", "bind":
+		// LogSlowQuery(logLine)
+	case "plan":
+		// LogQueryPlan(logLine)
+	}
 }
 
-type SlowQuery struct {
-	User      string
-	Database  string
-	Statement string
-	Timestamp time.Time
-	Duration  time.Duration
+type LogScanner interface {
+	Scan() bool
+	Text() string
+	Err() error
+}
+
+func NewStdinLogScanner() LogScanner {
+	return bufio.NewScanner(os.Stdin)
 }
 
 type LogLine struct {
@@ -69,182 +39,129 @@ type LogLine struct {
 	line  string
 }
 
-func parseSlowQuery(buffer string) (*SlowQuery, error) {
-	var index int
-
-	sq := new(SlowQuery)
-
-	// Parse the statement
-	index = strings.Index(buffer, "statement: ")
-	if index < 0 {
-		return nil, nil
-	}
-	sq.Statement = strings.Replace(buffer[index:], "statement: ", "", 1)
-
-	// Parse the duration
-	index = strings.Index(buffer, "duration: ")
-	if index < 0 {
-		return nil, nil
-	}
-	durationEtc := buffer[index:]
-	durationEndIndex := strings.Index(durationEtc, " ms")
-	if durationEndIndex < 0 {
-		return nil, nil
-	}
-	durationEndIndex += index
-	duration, err := time.ParseDuration(
-		fmt.Sprint(
-			strings.Replace(buffer[index:durationEndIndex], "duration: ", "", 1),
-			"ms"))
-	if err != nil {
-		return nil, err
-	}
-	sq.Duration = duration
-
-	// Parse User and Database
-	index = strings.Index(buffer, " LOG:")
-	if index < 0 {
-		return nil, nil
-	}
-	splitsUpToUserAndDatabase := strings.Split(buffer[:index], " ")
-	userAndDatabaseStr := splitsUpToUserAndDatabase[len(splitsUpToUserAndDatabase)-1]
-	userAndDatabase := strings.Split(userAndDatabaseStr, "@")
-	sq.User = userAndDatabase[0]
-	sq.Database = userAndDatabase[1]
-
-	// Parse Time
-	timeStr := strings.Split(buffer, " [")[0]
-	sq.Timestamp, err = time.Parse("2006-01-02 15:04:05 MST", timeStr)
-	return sq, err
+type PostgresLogLine struct {
+	Timestamp     time.Time
+	Username      string
+	Database      string
+	Duration      time.Duration
+	LogType       string
+	StatementName string
+	Value         string
 }
 
-func processLogBuffer(buffer string) {
-	if !isQueryPlan(buffer) {
-		return
-	}
-
-	buffer = strings.Split(buffer, " plan:")[1]
-
-	queryPlan := new(AutoExplainedQueryPlan)
-
-	buf := []byte(buffer)
-	err := json.Unmarshal(buf, &queryPlan)
-	if err != nil {
-		fmt.Println("Error parsing query plan from log:", err)
-		return
-	}
-
-	pretty.Println("---")
-	pretty.Println("SLOW QUERY:", queryPlan)
+type PostgresLogParser struct {
+	logScanner  LogScanner
+	buffer      string
+	logLineChan chan *LogLine
 }
 
-func isQueryPlan(buffer string) bool {
-	return strings.Contains(buffer, " LOG:  ") && strings.Contains(buffer, " plan:")
+func NewPostgresLogParser(logScanner LogScanner) *PostgresLogParser {
+	logLineChan := make(chan *LogLine)
+
+	// Continue to parse the scanner for log lines.
+	// Signal when the scanner has completed.
+	go func() {
+		for logScanner.Scan() {
+			logLineChan <- &LogLine{line: logScanner.Text(), alive: true}
+		}
+		close(logLineChan)
+	}()
+
+	return &PostgresLogParser{
+		buffer:      "",
+		logLineChan: logLineChan,
+		logScanner:  logScanner,
+	}
 }
 
-func isSlowQuery(buffer string) bool {
-	return strings.Contains(buffer, "  LOG: duration: ")
+// 5 MB
+const maxBufferLength = 5242880
+
+var ErrLogEOF = errors.New("EOF: The log has ended")
+
+// A postgres log line starts with a "YYYY-MM-DD HH:MM:SS [*] LOG:" pattern.
+// If a line matches that, it's a new postgres log line.
+// We can continue adding random unmatched newlines to the buffer after detecting
+// a new log line, because postgres log lines can have multiple lines.
+// Lastly, postgres doesn't hesitate when it logs lines, so we can also include a
+// timer to detect the end of a postgres log line.
+func (self *PostgresLogParser) Parse() (*PostgresLogLine, error) {
+	logTimeout := time.NewTimer(time.Second)
+
+	for {
+		// Reset the log line timeout timer.
+		logTimeout.Reset(time.Second)
+
+		// Collect a single log line.
+		select {
+		case logLine := <-self.logLineChan:
+			// Handle EOF from the log scanner.
+			if logLine == nil || !logLine.alive {
+				if len(self.buffer) > 0 {
+					// Parse the line and then return
+					return self.parseLogBuffer()
+				} else {
+					// Return EOF
+					return nil, ErrLogEOF
+				}
+			}
+
+			// If we detect a new log line and we have existing buffer,
+			// then we need to parse the buffer. And reset buffer.
+			rawLine := logLine.line
+			if len(self.buffer) > 0 && isNewLogLine(rawLine) {
+				// Swap buffer so rawLine can be included next time Parse is called.
+
+				// Time to parse this and return to caller.
+				log, err := self.parseLogBuffer()
+				self.buffer = rawLine
+				return log, err
+			}
+
+			// Otherwise, we can continue adding buffer until max buffer size.
+			if len(self.buffer) < maxBufferLength {
+				self.buffer += "\r\n"
+				self.buffer += rawLine
+			}
+
+		case <-logTimeout.C:
+			if len(self.buffer) == 0 {
+				continue
+			}
+
+			return self.parseLogBuffer()
+		}
+	}
+}
+
+func (self *PostgresLogParser) parseLogBuffer() (*PostgresLogLine, error) {
+	log := &PostgresLogLine{
+		Value: self.buffer,
+	}
+	self.buffer = ""
+	return log, nil
 }
 
 func isNewLogLine(line string) bool {
 	return RegexBeginningOfLine.MatchString(line)
 }
 
-func isEndOfQuery(line string) bool {
-	return RegexEndOfQuery.MatchString(line)
-}
-
 func main() {
-	logLineChan := make(chan LogLine)
-	logTimeout := time.NewTimer(time.Second)
+	// 	logStreamer, err := NewJournaldLogStreamer("postgresql")
 
-	go func() {
-		scanner := bufio.NewScanner(os.Stdin)
-		for scanner.Scan() {
-			logLineChan <- LogLine{line: scanner.Text(), alive: true}
-		}
-		logLineChan <- LogLine{line: "", alive: false}
-	}()
+	logScanner := NewStdinLogScanner()
+	logParser := NewPostgresLogParser(logScanner)
 
-	// I know, this is dumb.
-	var buffer string
 	for {
-		logTimeout.Reset(time.Second)
-
-		select {
-		case logLine := <-logLineChan:
-			if !logLine.alive {
-				if len(buffer) > 0 {
-					processLogBuffer(buffer)
-				}
-				return
-			}
-			line := logLine.line
-
-			// New line
-			if isNewLogLine(line) {
-				if len(buffer) > 0 {
-					processLogBuffer(buffer)
-				}
-				buffer = line
-			} else {
-				if len(buffer) < maxBufferLength {
-					// These are stripped by the scanner.
-					buffer += "\r\n"
-					buffer += line
-				} else {
-					continue
-				}
-
-				//fmt.Println(line, []byte(line), isEndOfQuery(line))
-				if isEndOfQuery(line) {
-					processLogBuffer(buffer)
-					buffer = ""
-				}
-			}
-		case <-logTimeout.C:
-			// The log timed out. Attempt to parse the entire line.
-			// Skip if buffer is empty
-			if len(buffer) == 0 {
-				continue
-			}
-
-			//line := buffer
-			//fmt.Println(line, []byte(line), isEndOfQuery(line))
-			processLogBuffer(buffer)
-			buffer = ""
+		pgLogLine, err := logParser.Parse()
+		if err == ErrLogEOF {
+			return
 		}
-	}
-
-	fmt.Println("Done")
-}
-
-func main2() {
-	scanner := bufio.NewScanner(os.Stdin)
-	// I know, this is dumb.
-	var buffer string
-	for scanner.Scan() {
-		line := scanner.Text()
-		if isNewLogLine(line) {
-			if len(buffer) > 0 {
-				processLogBuffer(buffer)
-			}
-			buffer = line
-		} else {
-			if len(buffer) < maxBufferLength {
-				// These are stripped by the scanner.
-				buffer += "\r\n"
-				buffer += line
-			} else {
-				continue
-			}
-
-			fmt.Println(line, []byte(line), isEndOfQuery(line))
-			if isEndOfQuery(line) {
-				processLogBuffer(buffer)
-				buffer = ""
-			}
+		if err != nil {
+			fmt.Println("Error parsing postgres log:", err)
+			continue
 		}
+
+		pretty.Println(pgLogLine)
 	}
-	fmt.Println("Done")
 }
