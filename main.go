@@ -139,7 +139,7 @@ func (self *PostgresLogParser) parseLogBuffer() (*PostgresLogLine, error) {
 	// Parse Duration
 	index := strings.Index(self.buffer, "duration: ")
 	if index < 0 {
-		return nil, nil 
+		return nil, nil
 	}
 	durationEtc := self.buffer[index:]
 	durationEndIndex := strings.Index(durationEtc, " ms")
@@ -159,13 +159,13 @@ func (self *PostgresLogParser) parseLogBuffer() (*PostgresLogLine, error) {
 	// duration := parseDuration(self.buffer)
 
 	log := &PostgresLogLine{
-		Timestamp: timestamp,
-		Username: user,
-		Database: database,
-		Duration: duration,
-		LogType:  logType,
+		Timestamp:     timestamp,
+		Username:      user,
+		Database:      database,
+		Duration:      duration,
+		LogType:       logType,
 		StatementName: statmentName,
-		Value: self.buffer,
+		Value:         self.buffer,
 	}
 
 	self.buffer = ""
@@ -173,14 +173,14 @@ func (self *PostgresLogParser) parseLogBuffer() (*PostgresLogLine, error) {
 }
 
 // Parse Time
-func parseTime(buffer string) (time.Time) {
+func parseTime(buffer string) time.Time {
 	timeStr := strings.Split(buffer, " [")[0]
 	timestamp, _ := time.Parse("2006-01-02 15:04:05 MST", timeStr)
 	return timestamp
 }
 
 // Parse Log Type
-func parseLogType(buffer string) (string) {
+func parseLogType(buffer string) string {
 	partial := strings.Split(buffer, " ms  ")[1]
 	return strings.Split(partial, ":")[0]
 }
