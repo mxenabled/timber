@@ -237,6 +237,15 @@ func isNewLogLine(line string) bool {
 	return RegexBeginningOfLine.MatchString(line)
 }
 
+var (
+	RegexSqlString = regexp.MustCompile("'[^']+'")
+)
+
+func ScrubQuery(sql string) string {
+	sql = RegexSqlString.ReplaceAllString(sql, "'XXX'")
+	return sql
+}
+
 func main() {
 	logScanner := NewStdinLogScanner()
 	logParser := NewPostgresLogParser(logScanner)
