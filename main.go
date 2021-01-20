@@ -155,6 +155,7 @@ func (self *PostgresLogParser) parseLogBuffer() (*PostgresLogLine, error) {
 	timestamp := parseTime(self.buffer)
 	user, database := parseUserAndDatabase(self.buffer)
 	logType, statementName := parseLogTypeWithStatementName(self.buffer)
+	value := parseValueFromBuffer(self.buffer)
 	// duration := parseDuration(self.buffer)
 
 	log := &PostgresLogLine{
@@ -164,7 +165,7 @@ func (self *PostgresLogParser) parseLogBuffer() (*PostgresLogLine, error) {
 		Duration:      duration,
 		LogType:       logType,
 		StatementName: statementName,
-		Value:         self.buffer,
+		Value:         value,
 	}
 
 	self.buffer = ""
@@ -176,6 +177,13 @@ func parseTime(buffer string) time.Time {
 	timeStr := strings.Split(buffer, " [")[0]
 	timestamp, _ := time.Parse("2006-01-02 15:04:05 MST", timeStr)
 	return timestamp
+}
+
+// Parse value from buffer
+func parseValueFromBuffer(buffer string) string {
+	partial := strings.Split(buffer, " ms  ")[1]
+	value := strings.SplitN(partial, ":", 2)[1]
+	return value
 }
 
 // Parse Log Type w/ StatementName
@@ -230,8 +238,6 @@ func isNewLogLine(line string) bool {
 }
 
 func main() {
-	// 	logStreamer, err := NewJournaldLogStreamer("postgresql")
-
 	logScanner := NewStdinLogScanner()
 	logParser := NewPostgresLogParser(logScanner)
 
