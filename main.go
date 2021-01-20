@@ -13,7 +13,7 @@ import (
 )
 
 var (
-	RegexBeginningOfLine = regexp.MustCompile(`^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}.*LOG:`)
+	RegexBeginningOfLine = regexp.MustCompile(`^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}.*([A-Z]+):`)
 )
 
 func HandlePostgresLogLine(logLine *PostgresLogLine) {
@@ -153,9 +153,8 @@ func (self *PostgresLogParser) parseLogBuffer() (*PostgresLogLine, error) {
 			"ms"))
 
 	timestamp := parseTime(self.buffer)
-	logType := parseLogType(self.buffer)
 	user, database := parseUserAndDatabase(self.buffer)
-	statmentName, _ := parseStatementName(self.buffer)
+	logType, statementName := parseLogTypeWithStatementName(self.buffer)
 	// duration := parseDuration(self.buffer)
 
 	log := &PostgresLogLine{
@@ -164,7 +163,7 @@ func (self *PostgresLogParser) parseLogBuffer() (*PostgresLogLine, error) {
 		Database:      database,
 		Duration:      duration,
 		LogType:       logType,
-		StatementName: statmentName,
+		StatementName: statementName,
 		Value:         self.buffer,
 	}
 
@@ -179,19 +178,15 @@ func parseTime(buffer string) time.Time {
 	return timestamp
 }
 
-// Parse Log Type
-func parseLogType(buffer string) string {
+// Parse Log Type w/ StatementName
+func parseLogTypeWithStatementName(buffer string) (string, string) {
 	partial := strings.Split(buffer, " ms  ")[1]
-	return strings.Split(partial, ":")[0]
-}
-
-// Parse the statementName
-func parseStatementName(buffer string) (string, error) {
-	index := strings.Index(buffer, "statement: ")
-	if index < 0 {
-		return "", nil
+	partial = strings.Split(partial, ":")[0]
+	result := strings.Split(partial, " ")
+	if len(result) > 1 {
+		return result[0], result[1]
 	}
-	return strings.Replace(buffer[index:], "statement: ", "", 1), nil
+	return result[0], ""
 }
 
 // // Parse the duration
