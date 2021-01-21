@@ -239,12 +239,22 @@ func isNewLogLine(line string) bool {
 
 var (
 	RegexSqlString = regexp.MustCompile("'[^']+'")
+	RegexNString   = regexp.MustCompile(`([0-9])+`)
 )
 
 func ScrubQuery(sql string) string {
 	sql = RegexSqlString.ReplaceAllString(sql, "'XXX'")
+	sql = RegexNString.ReplaceAllString(sql, "N")
+
 	return sql
 }
+
+// gsub => [
+//        "message", "'[^']+'",      "'XXX'",
+//        "message", "IN \([^\)]+\)", "IN (XXX)",
+//        "message", "([=<>]+)\s+(\d+)",   "\1 N",
+//        "message", "_shard([0-9]+)", ""
+//      ]
 
 func main() {
 	logScanner := NewStdinLogScanner()
