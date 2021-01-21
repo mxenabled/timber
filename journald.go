@@ -3,10 +3,7 @@ package main
 import (
 	"bufio"
 	"encoding/json"
-	"fmt"
 	"os/exec"
-
-	"github.com/kr/pretty"
 )
 
 type JournalMessage struct {
@@ -39,19 +36,45 @@ func journalctl(tag string) (*bufio.Scanner, error) {
 	return bufio.NewScanner(stdout), nil
 }
 
-func mainYolo() {
-	scanner, err := journalctl("yolo")
+type JournaldScanner struct {
+	scanner     *bufio.Scanner
+	nextMessage *JournalMessage
+	nextError   error
+}
+
+func NewJournaldLogScanner() (LogScanner, error) {
+	scanner, err := journalctl("postgres")
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
-	msg := new(JournalMessage)
-	for scanner.Scan() {
-		bytes := []byte(scanner.Text())
-		err := json.Unmarshal(bytes, msg)
-		if err != nil {
-			fmt.Println("Error parsing journal line:", err)
-			continue
-		}
-		pretty.Println(msg.Message)
+	return &JournaldScanner{
+		scanner:     scanner,
+		nextMessage: new(JournalMessage),
+	}, nil
+}
+
+func (self *JournaldScanner) Scan() bool {
+	self.nextError = nil
+
+	if !self.scanner.Scan() {
+		self.nextError = self.scanner.Err() // ???
+		return false
 	}
+
+	bytes := []byte(self.scanner.Text())
+	err := json.Unmarshal(bytes, self.nextMessage)
+	if err != nil {
+		self.nextError = err
+		return false
+	}
+
+	return true
+}
+
+func (self *JournaldScanner) Text() string {
+	return self.nextMessage.Message
+}
+
+func (self *JournaldScanner) Err() error {
+	return self.nextError
 }

@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"errors"
+	"flag"
 	"fmt"
 	"os"
 	"regexp"
@@ -17,12 +18,14 @@ var (
 )
 
 func HandlePostgresLogLine(logLine *PostgresLogLine) {
-	pretty.Println(logLine)
 
 	switch logLine.LogType {
 	case "statement", "execute", "parse", "bind":
+		value := ScrubQuery(logLine.Value)
+		pretty.Println(value)
 		// LogSlowQuery(logLine)
 	case "plan":
+		pretty.Println(logLine.Value)
 		// LogQueryPlan(logLine)
 	}
 }
@@ -254,10 +257,32 @@ func ScrubQuery(sql string) string {
 	return sql
 }
 
-func main() {
-	logScanner := NewStdinLogScanner()
-	logParser := NewPostgresLogParser(logScanner)
+var (
+	loggerSourceType string
+)
 
+func main() {
+	flag.StringVar(&loggerSourceType, "logger-source-type", "stdin", "supports stdin for piped input and journald")
+	flag.Parse()
+
+	var logScanner LogScanner
+	var err error
+
+	switch loggerSourceType {
+	case "journald":
+		logScanner, err = NewJournaldLogScanner()
+		if err != nil {
+			fmt.Println("Could not start the journald logger source:", err)
+			return
+		}
+	case "stdin":
+		logScanner = NewStdinLogScanner()
+	default:
+		fmt.Println("Uknown logger source type:", loggerSourceType)
+		return
+	}
+
+	logParser := NewPostgresLogParser(logScanner)
 	for {
 		pgLogLine, err := logParser.Parse()
 		if err == ErrLogEOF {
