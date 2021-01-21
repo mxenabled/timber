@@ -17,6 +17,8 @@ var (
 )
 
 func HandlePostgresLogLine(logLine *PostgresLogLine) {
+	pretty.Println(logLine)
+
 	switch logLine.LogType {
 	case "statement", "execute", "parse", "bind":
 		// LogSlowQuery(logLine)
@@ -78,7 +80,10 @@ func NewPostgresLogParser(logScanner LogScanner) *PostgresLogParser {
 // 5 MB
 const maxBufferLength = 5242880
 
-var ErrLogEOF = errors.New("EOF: The log has ended")
+var (
+	ErrLogEOF         = errors.New("EOF: The log has ended")
+	ErrInvalidLogLine = errors.New("The parser could not derive query or plan info from the log line")
+)
 
 // A postgres log line starts with a "YYYY-MM-DD HH:MM:SS [*] LOG:" pattern.
 // If a line matches that, it's a new postgres log line.
@@ -139,12 +144,12 @@ func (self *PostgresLogParser) parseLogBuffer() (*PostgresLogLine, error) {
 	// Parse Duration
 	index := strings.Index(self.buffer, "duration: ")
 	if index < 0 {
-		return nil, nil
+		return nil, ErrInvalidLogLine
 	}
 	durationEtc := self.buffer[index:]
 	durationEndIndex := strings.Index(durationEtc, " ms")
 	if durationEndIndex < 0 {
-		return nil, nil
+		return nil, ErrInvalidLogLine
 	}
 	durationEndIndex += index
 	duration, _ := time.ParseDuration(
@@ -249,13 +254,6 @@ func ScrubQuery(sql string) string {
 	return sql
 }
 
-// gsub => [
-//        "message", "'[^']+'",      "'XXX'",
-//        "message", "IN \([^\)]+\)", "IN (XXX)",
-//        "message", "([=<>]+)\s+(\d+)",   "\1 N",
-//        "message", "_shard([0-9]+)", ""
-//      ]
-
 func main() {
 	logScanner := NewStdinLogScanner()
 	logParser := NewPostgresLogParser(logScanner)
@@ -270,6 +268,6 @@ func main() {
 			continue
 		}
 
-		pretty.Println(pgLogLine)
+		HandlePostgresLogLine(pgLogLine)
 	}
 }
