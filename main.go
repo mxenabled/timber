@@ -18,7 +18,6 @@ var (
 )
 
 func HandlePostgresLogLine(logLine *PostgresLogLine) {
-
 	switch logLine.LogType {
 	case "statement", "execute", "parse", "bind":
 		value := ScrubQuery(logLine.Value)
