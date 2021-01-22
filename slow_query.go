@@ -48,5 +48,7 @@ func LogSlowQuery(logLine *PostgresLogLine) {
 		return
 	}
 
+	SendToKibana(bytes)
+
 	pretty.Println(string(bytes))
 }
