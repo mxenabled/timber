@@ -9,8 +9,6 @@ import (
 	"regexp"
 	"strings"
 	"time"
-
-	"github.com/kr/pretty"
 )
 
 var (
@@ -20,12 +18,9 @@ var (
 func HandlePostgresLogLine(logLine *PostgresLogLine) {
 	switch logLine.LogType {
 	case "statement", "execute", "parse", "bind":
-		value := ScrubQuery(logLine.Value)
-		pretty.Println(value)
-		// LogSlowQuery(logLine)
+		LogSlowQuery(logLine)
 	case "plan":
-		pretty.Println(logLine.Value)
-		// LogQueryPlan(logLine)
+		// NOTHING FOR NOW
 	}
 }
 
@@ -242,18 +237,6 @@ func parseUserAndDatabase(buffer string) (string, string) {
 
 func isNewLogLine(line string) bool {
 	return RegexBeginningOfLine.MatchString(line)
-}
-
-var (
-	RegexSqlString = regexp.MustCompile("'[^']+'")
-	RegexNString   = regexp.MustCompile(`([0-9])+`)
-)
-
-func ScrubQuery(sql string) string {
-	sql = RegexSqlString.ReplaceAllString(sql, "'XXX'")
-	sql = RegexNString.ReplaceAllString(sql, "N")
-
-	return sql
 }
 
 var (

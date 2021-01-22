@@ -24,7 +24,7 @@ type JournalMessage struct {
 }
 
 func journalctl(tag string) (*bufio.Scanner, error) {
-	c := exec.Command("/usr/bin/journalctl", "-t", tag, "-f", "-o", "json")
+	c := exec.Command("/usr/bin/journalctl", "-t", tag, "-f", "-o", "json", "-n", "0")
 	stdout, err := c.StdoutPipe()
 	if err != nil {
 		return nil, err
