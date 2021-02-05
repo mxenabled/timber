@@ -9,19 +9,6 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestParsingStatementWithJournaldPrefix(t *testing.T) {
-	log := `[28-1] 2021-02-05 22:20:11 UTC [20215-10/0-16] postgres@app_sandbox LOG:  duration: 56.850 ms  statement: select count(*) from transaction_descriptions;
-[29-1] 2021-02-05 22:20:11 UTC [20215-10/0-16] postgres@app_sandbox LOG:  duration: 56.850 ms  statement: select count(*) from yolos;
-`
-
-	scanner := bufio.NewScanner(strings.NewReader(log))
-	logParser := NewPostgresLogParser(scanner)
-	pgLog, err := logParser.Parse()
-	assert.Nil(t, err)
-
-	assert.Equal(t, pgLog.Value, " select count(*) from transaction_descriptions;", "they should be equal")
-}
-
 func TestParsingBindStatement(t *testing.T) {
 	log := `2021-01-11 15:25:36 EST [56193-3/9939-5706] postgres@walle_test LOG:  duration: 0.139 ms  bind <unnamed>: SELECT 1 AS one FROM "borrower_applications" WHERE "borrower_applications"."confirmation_number" = $1 LIMIT $2
 2021-01-11 15:25:36 EST [56193-3/9939-5707] postgres@walle_test DETAIL:  parameters: $1 = '6BE8-BC52-7545', $2 = '1'

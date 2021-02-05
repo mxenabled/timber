@@ -4,7 +4,10 @@ import (
 	"bufio"
 	"encoding/json"
 	"os/exec"
+	"regexp"
 )
+
+var RegexBeginningOfJournaldLogLine = regexp.MustCompile(`^\[\d+\-\d+] `)
 
 type JournalMessage struct {
 	Message   string `json:"MESSAGE"`
@@ -67,6 +70,10 @@ func (self *JournaldScanner) Scan() bool {
 		self.nextError = err
 		return false
 	}
+
+	// Journald will sometimes add a "[NN-N] " prefix to a log line.
+	self.nextMessage.Message = RegexBeginningOfJournaldLogLine.
+		ReplaceAllString(self.nextMessage.Message, "")
 
 	return true
 }
