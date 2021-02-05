@@ -141,11 +141,13 @@ func (self *PostgresLogParser) parseLogBuffer() (*PostgresLogLine, error) {
 	// Parse Duration
 	index := strings.Index(self.buffer, "duration: ")
 	if index < 0 {
+		self.buffer = ""
 		return nil, ErrInvalidLogLine
 	}
 	durationEtc := self.buffer[index:]
 	durationEndIndex := strings.Index(durationEtc, " ms")
 	if durationEndIndex < 0 {
+		self.buffer = ""
 		return nil, ErrInvalidLogLine
 	}
 	durationEndIndex += index
