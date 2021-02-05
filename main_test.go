@@ -39,7 +39,7 @@ func TestParsingExecuteStatement(t *testing.T) {
 	assert.Equal(t, pgLog.Duration, time.Duration(20000), "they should be equal")
 	assert.Equal(t, pgLog.Username, "postgres", "they should be equal")
 	assert.Equal(t, pgLog.Database, "baller_test", "they should be equal")
-	assert.Equal(t, pgLog.Value, ` SELECT 1 AS one FROM "borrower_applications" WHERE "borrower_applications"."confirmation_number" = $1 LIMIT $2`, "they should be equal")
+	assert.Equal(t, pgLog.Value, `SELECT 1 AS one FROM "borrower_applications" WHERE "borrower_applications"."confirmation_number" = $1 LIMIT $2`, "they should be equal")
 }
 
 func TestParsingBrokenLog(t *testing.T) {
@@ -74,10 +74,10 @@ func TestScrubbingCanFilterStringsAndDigits(t *testing.T) {
 	logParser := NewPostgresLogParser(scanner)
 	pgLog, err := logParser.Parse()
 	assert.Nil(t, err)
-	assert.Equal(t, pgLog.Value, ` SELECT * FROM transactions WHERE guid IN ('TRN-123', 'TRN-234') AND account_id IN (1, 2, 4, 5)`)
+	assert.Equal(t, pgLog.Value, `SELECT * FROM transactions WHERE guid IN ('TRN-123', 'TRN-234') AND account_id IN (1, 2, 4, 5)`)
 
 	scrubbedQuery := ScrubQuery(pgLog.Value)
-	assert.Equal(t, ` SELECT * FROM transactions WHERE guid IN ('XXX', 'XXX') AND account_id IN (N, N, N, N)`, scrubbedQuery)
+	assert.Equal(t, `SELECT * FROM transactions WHERE guid IN ('XXX', 'XXX') AND account_id IN (N, N, N, N)`, scrubbedQuery)
 }
 
 func TestScrubbingCanFilterIdEquals(t *testing.T) {
@@ -87,10 +87,10 @@ func TestScrubbingCanFilterIdEquals(t *testing.T) {
 	logParser := NewPostgresLogParser(scanner)
 	pgLog, err := logParser.Parse()
 	assert.Nil(t, err)
-	assert.Equal(t, pgLog.Value, ` SELECT * FROM transactions WHERE account_id = 5`)
+	assert.Equal(t, pgLog.Value, `SELECT * FROM transactions WHERE account_id = 5`)
 
 	scrubbedQuery := ScrubQuery(pgLog.Value)
-	assert.Equal(t, ` SELECT * FROM transactions WHERE account_id = N`, scrubbedQuery)
+	assert.Equal(t, `SELECT * FROM transactions WHERE account_id = N`, scrubbedQuery)
 }
 
 func TestScrubbingCanFilterDollarAmounts(t *testing.T) {
@@ -100,10 +100,10 @@ func TestScrubbingCanFilterDollarAmounts(t *testing.T) {
 	logParser := NewPostgresLogParser(scanner)
 	pgLog, err := logParser.Parse()
 	assert.Nil(t, err)
-	assert.Equal(t, pgLog.Value, ` SELECT * FROM transactions WHERE balance = 13.37`)
+	assert.Equal(t, pgLog.Value, `SELECT * FROM transactions WHERE balance = 13.37`)
 
 	scrubbedQuery := ScrubQuery(pgLog.Value)
-	assert.Equal(t, ` SELECT * FROM transactions WHERE balance = N.N`, scrubbedQuery)
+	assert.Equal(t, `SELECT * FROM transactions WHERE balance = N.N`, scrubbedQuery)
 }
 
 func TestScrubbingCanFilterSchemaName(t *testing.T) {
@@ -113,9 +113,9 @@ func TestScrubbingCanFilterSchemaName(t *testing.T) {
 	logParser := NewPostgresLogParser(scanner)
 	pgLog, err := logParser.Parse()
 	assert.Nil(t, err)
-	assert.Equal(t, pgLog.Value, ` SELECT * FROM abacus101_shard6.transactions WHERE balance = 13.37`)
+	assert.Equal(t, pgLog.Value, `SELECT * FROM abacus101_shard6.transactions WHERE balance = 13.37`)
 
 	scrubbedQuery := ScrubQuery(pgLog.Value)
 	//TODO: Make this not strip the shard information.
-	assert.Equal(t, ` SELECT * FROM abacusN_shardN.transactions WHERE balance = N.N`, scrubbedQuery)
+	assert.Equal(t, `SELECT * FROM abacusN_shardN.transactions WHERE balance = N.N`, scrubbedQuery)
 }

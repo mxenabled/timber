@@ -186,7 +186,7 @@ func parseTime(buffer string) time.Time {
 // Parse value from buffer
 func parseValueFromBuffer(buffer string) string {
 	partial := strings.Split(buffer, " ms  ")[1]
-	value := strings.SplitN(partial, ":", 2)[1]
+	value := strings.SplitN(partial, ": ", 2)[1]
 	return value
 }
 
