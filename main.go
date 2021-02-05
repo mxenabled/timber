@@ -12,7 +12,9 @@ import (
 )
 
 var (
-	RegexBeginningOfLine = regexp.MustCompile(`^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}.*([A-Z]+):`)
+	// Journald will sometimes add a "[NN-N] " prefix to a log line.
+	RegexBeginningOfLineJournald = regexp.MustCompile(`^\[.+\] \d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}.*([A-Z]+):`)
+	RegexBeginningOfLineStdin    = regexp.MustCompile(`^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}.*([A-Z]+):`)
 )
 
 func HandlePostgresLogLine(logLine *PostgresLogLine) {
@@ -238,7 +240,7 @@ func parseUserAndDatabase(buffer string) (string, string) {
 }
 
 func isNewLogLine(line string) bool {
-	return RegexBeginningOfLine.MatchString(line)
+	return RegexBeginningOfLineStdin.MatchString(line) || RegexBeginningOfLineJournald.MatchString(line)
 }
 
 var (
