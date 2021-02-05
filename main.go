@@ -12,7 +12,7 @@ import (
 )
 
 var (
-	RegexBeginningOfLine = regexp.MustCompile(`^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}.*([A-Z]+):`)
+	RegexBeginningOfLineStdin = regexp.MustCompile(`^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}.*([A-Z]+):`)
 )
 
 func HandlePostgresLogLine(logLine *PostgresLogLine) {
@@ -186,7 +186,7 @@ func parseTime(buffer string) time.Time {
 // Parse value from buffer
 func parseValueFromBuffer(buffer string) string {
 	partial := strings.Split(buffer, " ms  ")[1]
-	value := strings.SplitN(partial, ":", 2)[1]
+	value := strings.SplitN(partial, ": ", 2)[1]
 	return value
 }
 
@@ -238,7 +238,7 @@ func parseUserAndDatabase(buffer string) (string, string) {
 }
 
 func isNewLogLine(line string) bool {
-	return RegexBeginningOfLine.MatchString(line)
+	return RegexBeginningOfLineStdin.MatchString(line)
 }
 
 var (
