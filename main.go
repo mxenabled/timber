@@ -183,13 +183,6 @@ func parseTime(buffer string) time.Time {
 	return timestamp
 }
 
-// Parse value from buffer
-func parseValueFromBuffer(buffer string) string {
-	partial := strings.Split(buffer, " ms  ")[1]
-	value := strings.SplitN(partial, ": ", 2)[1]
-	return value
-}
-
 // Parse Log Type w/ StatementName
 func parseLogTypeWithStatementName(buffer string) (string, string) {
 	partial := strings.Split(buffer, " ms  ")[1]
@@ -201,27 +194,16 @@ func parseLogTypeWithStatementName(buffer string) (string, string) {
 	return result[0], ""
 }
 
-// // Parse the duration
-// func parseDuration(buffer string) (*time.Duration, error) {
-// 	index := strings.Index(buffer, "duration: ")
-// 	if index < 0 {
-// 		return nil, nil
-// 	}
-// 	durationEtc := buffer[index:]
-// 	durationEndIndex := strings.Index(durationEtc, " ms")
-// 	if durationEndIndex < 0 {
-// 		return nil, nil
-// 	}
-// 	durationEndIndex += index
-// 	duration, err := time.ParseDuration(
-// 		fmt.Sprint(
-// 			strings.Replace(buffer[index:durationEndIndex], "duration: ", "", 1),
-// 			"ms"))
-// 	if err != nil {
-// 		return nil, nil
-// 	}
-// 	return duration
-// }
+// Parse value from buffer
+func parseValueFromBuffer(buffer string) string {
+	partial := strings.Split(buffer, " ms  ")[1]
+	index := strings.Index(partial, ": ")
+	value := strings.SplitN(partial, ":", 2)[1]
+	if index > 0 {
+		value = strings.SplitN(partial, ": ", 2)[1]
+	}
+	return value
+}
 
 // Parse User and Database
 func parseUserAndDatabase(buffer string) (string, string) {
