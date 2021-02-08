@@ -243,11 +243,20 @@ func isNewLogLine(line string) bool {
 
 var (
 	loggerSourceType string
+	displayVersion   bool
+
+	version string = "0.0.1"
 )
 
 func main() {
 	flag.StringVar(&loggerSourceType, "logger-source-type", "stdin", "supports stdin for piped input and journald")
+	flag.BoolVar(&displayVersion, "version", false, "show the version and exit")
 	flag.Parse()
+
+	if displayVersion {
+		fmt.Println(version)
+		return
+	}
 
 	var logScanner LogScanner
 	var err error
