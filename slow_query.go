@@ -39,7 +39,7 @@ func LogSlowQuery(logLine *PostgresLogLine) {
 		Username:               logLine.Username,
 		DurationInMilliseconds: float64(logLine.Duration.Microseconds()) / 1000.0,
 		CreatedAt:              time.Now().UTC().String(),
-		Type:                   "postgres_slow_query",
+		Type:                   "timber.postgres_slow_query",
 	}
 
 	bytes, err := json.Marshal(msg)
