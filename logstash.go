@@ -13,7 +13,7 @@ var (
 
 func init() {
 	var err error
-	KibanaLogger, err = syslog.New(syslog.LOG_LOCAL1, "postgres_slow_query_logger")
+	KibanaLogger, err = syslog.New(syslog.LOG_LOCAL1, "timber")
 	if err != nil {
 		panic(err)
 	}
