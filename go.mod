@@ -1,4 +1,4 @@
-module gitlab.mx.com/garrett.thornburg/pg_slow_query_log_parser
+module github.com/mxenabled/timber
 
 go 1.15
 
