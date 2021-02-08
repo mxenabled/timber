@@ -25,6 +25,31 @@ func TestParsingBindStatement(t *testing.T) {
 	assert.Equal(t, pgLog.Database, "walle_test", "they should be equal")
 }
 
+func TestParsingStatementMultiline(t *testing.T) {
+	log := `2021-02-08 16:09:20 UTC [26820-153/0-3] postgres@bob1989_production LOG:  duration: 2723.044 ms  statement:
+        WITH all_sequences AS (
+         SELECT  pg_namespace.nspname as namespace
+         ,       pg_class.relname as table
+         ,       2^((pg_attribute.attlen*8)-1)-1 as upper_limit
+         ,       pg_get_serial_sequence(pg_namespace.nspname || '.' || pg_class.relname, 'id') sequence_name
+         FROM
+           pg_attribute
+         LEFT JOIN pg_class ON
+           pg_class.oid = pg_attribute.attrelid
+         LEFT JOIN pg_namespace ON
+         `
+
+	scanner := bufio.NewScanner(strings.NewReader(log))
+	logParser := NewPostgresLogParser(scanner)
+	pgLog, err := logParser.Parse()
+	assert.Nil(t, err)
+	assert.Equal(t, pgLog.LogType, "statement", "they should be equal")
+	assert.Equal(t, pgLog.StatementName, "", "they should be equal")
+	assert.Equal(t, pgLog.Duration, time.Duration(2723044000), "they should be equal")
+	assert.Equal(t, pgLog.Username, "postgres", "they should be equal")
+	assert.Equal(t, pgLog.Database, "bob1989_production", "they should be equal")
+}
+
 func TestParsingExecuteStatement(t *testing.T) {
 	log := `2021-01-11 15:25:36 EST [56193-3/9939-5708] postgres@baller_test LOG:  duration: 0.020 ms  execute <unnamed>: SELECT 1 AS one FROM "borrower_applications" WHERE "borrower_applications"."confirmation_number" = $1 LIMIT $2
 2021-01-11 15:25:36 EST [56193-3/9939-5709] postgres@baller_test DETAIL:  parameters: $1 = '6BE8-BC52-7545', $2 = '1'
