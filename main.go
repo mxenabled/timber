@@ -187,7 +187,6 @@ func parseTime(buffer string) time.Time {
 func parseLogTypeWithStatementName(buffer string) (string, string) {
 	partial := strings.Split(buffer, " ms  ")[1]
 	partial = strings.Split(partial, ":")[0]
-	fmt.Println(partial, "++++")
 	result := strings.Split(partial, " ")
 	if len(result) > 1 {
 		return result[0], result[1]
@@ -199,7 +198,6 @@ func parseLogTypeWithStatementName(buffer string) (string, string) {
 func parseValueFromBuffer(buffer string) string {
 	partial := strings.Split(buffer, " ms  ")[1]
 	index := strings.Index(partial, ": ")
-	fmt.Println(index)
 	value := strings.SplitN(partial, ":", 2)[1]
 	if index > 0 {
 		value = strings.SplitN(partial, ": ", 2)[1]
