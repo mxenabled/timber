@@ -1,0 +1,26 @@
+# Golang CircleCI 2.0 configuration file
+#
+# Check https://circleci.com/docs/2.0/language-go/ for more details
+version: 2
+jobs:
+  build:
+    docker:
+      - image: circleci/golang:1.15
+
+    working_directory: /go/src/github.com/mxenabled/timber
+    steps:
+      - checkout
+
+      # install rsyslog for a working syslog
+      - run: sudo apt-get update
+      - run: sudo apt-get install -yy rsyslog
+      - run: sudo service rsyslog start
+
+      # styles
+      - run: gofmt -s -d -l $(find . -type f -name '*.go' -not -path "./vendor/*" -not -path "./.git/*") >> style_changes.txt
+      - run: cat style_changes.txt
+      - run: cat style_changes.txt | read && exit 1 || true
+
+      # specify any bash command here prefixed with `run: `
+      - run: go get -v -t -d ./...
+      - run: go test -v ./...
