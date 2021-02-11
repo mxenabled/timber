@@ -11,6 +11,10 @@ jobs:
     steps:
       - checkout
 
+      # install rsyslog for a working syslog
+      - run: sudo apt-get update
+      - run: sudo apt-get install -yy rsyslog
+
       # styles
       - run: gofmt -s -d -l $(find . -type f -name '*.go' -not -path "./vendor/*" -not -path "./.git/*") >> style_changes.txt
       - run: cat style_changes.txt
