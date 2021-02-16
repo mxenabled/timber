@@ -263,6 +263,10 @@ func main() {
 		if err == ErrLogEOF {
 			return
 		}
+		if err == ErrInvalidLogLine {
+			fmt.Println("Skipping log line:", err)
+			continue
+		}
 		if err != nil {
 			fmt.Println("Error parsing postgres log:", err)
 			continue
