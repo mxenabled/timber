@@ -26,6 +26,8 @@ type SlowQueryMessage struct {
 	Query                  string  `json:"query"`
 	Database               string  `json:"database"`
 	Username               string  `json:"username"`
+	ShardPartition         string  `json:"shard_partition"`
+	PartitionlessQuery     string  `json:"partitionless_query"`
 	DurationInMilliseconds float64 `json:"duration_in_milliseconds"`
 	CreatedAt              string  `json:"created_at"`
 	Type                   string  `json:"type"`
@@ -37,6 +39,8 @@ func LogSlowQuery(logLine *PostgresLogLine) {
 		Query:                  ScrubQuery(logLine.Value),
 		Database:               logLine.Database,
 		Username:               logLine.Username,
+		ShardPartition: 				logLine.ShardPartition,
+		PartitionlessQuery: 		ScrubQuery(logLine.PartitionlessQuery),
 		DurationInMilliseconds: float64(logLine.Duration.Microseconds()) / 1000.0,
 		CreatedAt:              time.Now().UTC().String(),
 		Type:                   "timber.postgres_slow_query",
