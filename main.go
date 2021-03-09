@@ -48,6 +48,7 @@ type PostgresLogLine struct {
 	StatementName string
 	Value         string
 	ShardPartition string
+	PartitionlessQuery string
 }
 
 type PostgresLogParser struct {
@@ -160,7 +161,7 @@ func (self *PostgresLogParser) parseLogBuffer() (*PostgresLogLine, error) {
 	timestamp := parseTime(self.buffer)
 	user, database := parseUserAndDatabase(self.buffer)
 	logType, statementName := parseLogTypeWithStatementName(self.buffer)
-	value, shardPartition := parseValuesFromBuffer(self.buffer)
+	value, shardPartition, partitionlessQuery := parseValuesFromBuffer(self.buffer)
 
 	log := &PostgresLogLine{
 		Timestamp:     timestamp,
@@ -171,6 +172,7 @@ func (self *PostgresLogParser) parseLogBuffer() (*PostgresLogLine, error) {
 		StatementName: statementName,
 		Value:         value,
 		ShardPartition: shardPartition,
+		PartitionlessQuery: partitionlessQuery,
 	}
 
 	self.buffer = ""
@@ -206,7 +208,7 @@ func parseLogTypeWithStatementName(buffer string) (string, string) {
 }
 
 // Parse value from buffer
-func parseValuesFromBuffer(buffer string) (string, string) {
+func parseValuesFromBuffer(buffer string) (string, string, string) {
 	partial := strings.Split(buffer, " ms  ")[1]
 	index := strings.Index(partial, ": ")
 	value := strings.SplitN(partial, ":", 2)[1]
@@ -215,12 +217,13 @@ func parseValuesFromBuffer(buffer string) (string, string) {
 	}
 
 	shardPartition := parseShardFromValue(value)
+	partitionlessQuery := ""
 
 	// Remove the shardPartition from value so it can be aggregatable
 	if strings.Contains(shardPartition, "abacus") {
-		value = strings.Replace(value, (shardPartition + "."), "", -1)
+		 partitionlessQuery = strings.Replace(value, (shardPartition + "."), "", -1)
 	}
-	return value, shardPartition
+	return value, shardPartition, partitionlessQuery
 }
 
 // Parse User and Database

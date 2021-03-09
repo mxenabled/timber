@@ -32,11 +32,12 @@ func TestParsingShardPartition(t *testing.T) {
 	logParser := NewPostgresLogParser(scanner)
 	pgLog, err := logParser.Parse()
 	assert.Nil(t, err)
-	assert.Equal(t, pgLog.Value, `SELECT * FROM transactions WHERE balance = 13.37`)
+	assert.Equal(t, pgLog.Value, `SELECT * FROM abacus101_shard6.transactions WHERE balance = 13.37`)
+	assert.Equal(t, pgLog.PartitionlessQuery, `SELECT * FROM transactions WHERE balance = 13.37`)
 	assert.Equal(t, pgLog.ShardPartition, `abacus101_shard6`)
 	scrubbedQuery := ScrubQuery(pgLog.Value)
 	//TODO: Make this not strip the shard information.
-	assert.Equal(t, `SELECT * FROM transactions WHERE balance = N.N`, scrubbedQuery)
+	assert.Equal(t, `SELECT * FROM abacusN_shardN.transactions WHERE balance = N.N`, scrubbedQuery)
 }
 
 func TestParsingStatementMultiline(t *testing.T) {
@@ -152,9 +153,10 @@ func TestScrubbingCanFilterSchemaName(t *testing.T) {
 	logParser := NewPostgresLogParser(scanner)
 	pgLog, err := logParser.Parse()
 	assert.Nil(t, err)
-	assert.Equal(t, pgLog.Value, `SELECT * FROM transactions WHERE balance = 13.37`)
+	assert.Equal(t, pgLog.Value, `SELECT * FROM abacus101_shard6.transactions WHERE balance = 13.37`)
+	assert.Equal(t, pgLog.PartitionlessQuery, `SELECT * FROM transactions WHERE balance = 13.37`)
 
 	scrubbedQuery := ScrubQuery(pgLog.Value)
 	//TODO: Make this not strip the shard information.
-	assert.Equal(t, `SELECT * FROM transactions WHERE balance = N.N`, scrubbedQuery)
+	assert.Equal(t, `SELECT * FROM abacusN_shardN.transactions WHERE balance = N.N`, scrubbedQuery)
 }
