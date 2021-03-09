@@ -217,13 +217,15 @@ func parseValuesFromBuffer(buffer string) (string, string, string) {
 	}
 
 	shardPartition := parseShardFromValue(value)
+	cleanedShardPartition := strings.Replace(shardPartition, "\"", "", -1)
+
 	partitionlessQuery := ""
 
 	// Remove the shardPartition from value so it can be aggregatable
 	if strings.Contains(shardPartition, "abacus") {
-		 partitionlessQuery = strings.Replace(value, (shardPartition + "."), "", -1)
+		partitionlessQuery = strings.Replace(value, (shardPartition + "."), "", -1)
 	}
-	return value, shardPartition, partitionlessQuery
+	return value, cleanedShardPartition, partitionlessQuery
 }
 
 // Parse User and Database
