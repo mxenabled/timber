@@ -40,14 +40,14 @@ type LogLine struct {
 }
 
 type PostgresLogLine struct {
-	Timestamp     time.Time
-	Username      string
-	Database      string
-	Duration      time.Duration
-	LogType       string
-	StatementName string
-	Value         string
-	ShardPartition string
+	Timestamp          time.Time
+	Username           string
+	Database           string
+	Duration           time.Duration
+	LogType            string
+	StatementName      string
+	Value              string
+	ShardPartition     string
 	PartitionlessQuery string
 }
 
@@ -164,14 +164,14 @@ func (self *PostgresLogParser) parseLogBuffer() (*PostgresLogLine, error) {
 	value, shardPartition, partitionlessQuery := parseValuesFromBuffer(self.buffer)
 
 	log := &PostgresLogLine{
-		Timestamp:     timestamp,
-		Username:      user,
-		Database:      database,
-		Duration:      duration,
-		LogType:       logType,
-		StatementName: statementName,
-		Value:         value,
-		ShardPartition: shardPartition,
+		Timestamp:          timestamp,
+		Username:           user,
+		Database:           database,
+		Duration:           duration,
+		LogType:            logType,
+		StatementName:      statementName,
+		Value:              value,
+		ShardPartition:     shardPartition,
 		PartitionlessQuery: partitionlessQuery,
 	}
 
