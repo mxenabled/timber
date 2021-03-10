@@ -181,11 +181,12 @@ func (self *PostgresLogParser) parseLogBuffer() (*PostgresLogLine, error) {
 
 func parseShardFromValue(value string) string {
 	shardPartition := ""
-	if strings.Contains(value, "abacus") {
-		splitStart := strings.Split(value, "FROM ")[1]
-		splitEnd := strings.Split(splitStart, " ")[0]
+	splitStart := strings.Split(value, " FROM ")
+	if len(splitStart) > 1 {
+		splitEnd := strings.Split(splitStart[1], " ")[0]
 		shardPartition = strings.Split(splitEnd, ".")[0]
 	}
+
 	return shardPartition
 }
 
@@ -222,7 +223,7 @@ func parseValuesFromBuffer(buffer string) (string, string, string) {
 	partitionlessQuery := ""
 
 	// Remove the shardPartition from value so it can be aggregatable
-	if strings.Contains(shardPartition, "abacus") {
+	if shardPartition != "" {
 		partitionlessQuery = strings.Replace(value, (shardPartition + "."), "", -1)
 	}
 	return value, cleanedShardPartition, partitionlessQuery
@@ -250,7 +251,7 @@ var (
 	loggerSourceType string
 	displayVersion   bool
 
-	version string = "0.0.2"
+	version string = "0.0.3"
 )
 
 func main() {

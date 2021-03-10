@@ -36,7 +36,7 @@ func TestParsingShardPartition(t *testing.T) {
 	assert.Equal(t, pgLog.PartitionlessQuery, `SELECT * FROM transactions WHERE balance = 13.37`)
 	assert.Equal(t, pgLog.ShardPartition, `abacus101_shard6`)
 	scrubbedQuery := ScrubQuery(pgLog.Value)
-	//TODO: Make this not strip the shard information.
+
 	assert.Equal(t, `SELECT * FROM abacusN_shardN.transactions WHERE balance = N.N`, scrubbedQuery)
 }
 
@@ -51,7 +51,7 @@ func TestParsingShardPartition2(t *testing.T) {
 	assert.Equal(t, pgLog.PartitionlessQuery, `SELECT __user.id, __user.guid FROM "users" __user WHERE (__user.is_deleted = $1 OR __user.is_deleted is null) AND __user.guid IN ($2) AND __user.user_guid IN ($3) ORDER BY __user.id ASC LIMIT 1`)
 	assert.Equal(t, pgLog.ShardPartition, `yolos_abacus_qa`)
 	scrubbedQuery := ScrubQuery(pgLog.Value)
-	//TODO: Make this not strip the shard information.
+
 	assert.Equal(t, `SELECT __user.id, __user.guid FROM "yolos_abacus_qa"."users" __user WHERE (__user.is_deleted = $N OR __user.is_deleted is null) AND __user.guid IN ($N) AND __user.user_guid IN ($N) ORDER BY __user.id ASC LIMIT N`, scrubbedQuery)
 }
 
