@@ -40,15 +40,13 @@ type LogLine struct {
 }
 
 type PostgresLogLine struct {
-	Timestamp          time.Time
-	Username           string
-	Database           string
-	Duration           time.Duration
-	LogType            string
-	StatementName      string
-	Value              string
-	ShardPartition     string
-	PartitionlessQuery string
+	Timestamp     time.Time
+	Username      string
+	Database      string
+	Duration      time.Duration
+	LogType       string
+	StatementName string
+	Value         string
 }
 
 type PostgresLogParser struct {
@@ -161,33 +159,20 @@ func (self *PostgresLogParser) parseLogBuffer() (*PostgresLogLine, error) {
 	timestamp := parseTime(self.buffer)
 	user, database := parseUserAndDatabase(self.buffer)
 	logType, statementName := parseLogTypeWithStatementName(self.buffer)
-	value, shardPartition, partitionlessQuery := parseValuesFromBuffer(self.buffer)
+	value := parseValuesFromBuffer(self.buffer)
 
 	log := &PostgresLogLine{
-		Timestamp:          timestamp,
-		Username:           user,
-		Database:           database,
-		Duration:           duration,
-		LogType:            logType,
-		StatementName:      statementName,
-		Value:              value,
-		ShardPartition:     shardPartition,
-		PartitionlessQuery: partitionlessQuery,
+		Timestamp:     timestamp,
+		Username:      user,
+		Database:      database,
+		Duration:      duration,
+		LogType:       logType,
+		StatementName: statementName,
+		Value:         value,
 	}
 
 	self.buffer = ""
 	return log, nil
-}
-
-func parseShardFromValue(value string) string {
-	shardPartition := ""
-	splitStart := strings.Split(value, " FROM ")
-	if len(splitStart) > 1 {
-		splitEnd := strings.Split(splitStart[1], " ")[0]
-		shardPartition = strings.Split(splitEnd, ".")[0]
-	}
-
-	return shardPartition
 }
 
 // Parse Time
@@ -209,7 +194,7 @@ func parseLogTypeWithStatementName(buffer string) (string, string) {
 }
 
 // Parse value from buffer
-func parseValuesFromBuffer(buffer string) (string, string, string) {
+func parseValuesFromBuffer(buffer string) string {
 	partial := strings.Split(buffer, " ms  ")[1]
 	index := strings.Index(partial, ": ")
 	value := strings.SplitN(partial, ":", 2)[1]
@@ -217,16 +202,7 @@ func parseValuesFromBuffer(buffer string) (string, string, string) {
 		value = strings.SplitN(partial, ": ", 2)[1]
 	}
 
-	shardPartition := parseShardFromValue(value)
-	cleanedShardPartition := strings.Replace(shardPartition, "\"", "", -1)
-
-	partitionlessQuery := ""
-
-	// Remove the shardPartition from value so it can be aggregatable
-	if shardPartition != "" {
-		partitionlessQuery = strings.Replace(value, (shardPartition + "."), "", -1)
-	}
-	return value, cleanedShardPartition, partitionlessQuery
+	return value
 }
 
 // Parse User and Database

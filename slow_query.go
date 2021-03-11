@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"regexp"
+	"strings"
 	"time"
 
 	"github.com/kr/pretty"
@@ -21,6 +22,30 @@ func ScrubQuery(sql string) string {
 	return sql
 }
 
+func parseShardFromValue(value string) string {
+	shardPartition := ""
+	splitStart := strings.Split(value, " FROM ")
+	if len(splitStart) > 1 {
+		splitEnd := strings.Split(splitStart[1], " ")[0]
+		shardPartition = strings.Split(splitEnd, ".")[0]
+	}
+
+	return shardPartition
+}
+
+func derivedValues(value string) (string, string) {
+	shardPartition := parseShardFromValue(value)
+	cleanedShardPartition := strings.Replace(shardPartition, "\"", "", -1)
+
+	partitionlessQuery := ""
+
+	// Remove the shardPartition from value so it can be aggregatable
+	if shardPartition != "" {
+		partitionlessQuery = strings.Replace(value, (shardPartition + "."), "", -1)
+	}
+	return cleanedShardPartition, partitionlessQuery
+}
+
 type SlowQueryMessage struct {
 	Command                string  `json:"command"`
 	Query                  string  `json:"query"`
@@ -34,13 +59,14 @@ type SlowQueryMessage struct {
 }
 
 func LogSlowQuery(logLine *PostgresLogLine) {
+	shardPartition, partitionlessQuery := derivedValues(logLine.Value)
 	msg := &SlowQueryMessage{
 		Command:                logLine.LogType,
 		Query:                  ScrubQuery(logLine.Value),
 		Database:               logLine.Database,
 		Username:               logLine.Username,
-		ShardPartition:         logLine.ShardPartition,
-		PartitionlessQuery:     ScrubQuery(logLine.PartitionlessQuery),
+		ShardPartition:         shardPartition,
+		PartitionlessQuery:     ScrubQuery(partitionlessQuery),
 		DurationInMilliseconds: float64(logLine.Duration.Microseconds()) / 1000.0,
 		CreatedAt:              time.Now().UTC().String(),
 		Type:                   "timber.postgres_slow_query",
