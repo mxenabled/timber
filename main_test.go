@@ -25,38 +25,6 @@ func TestParsingBindStatement(t *testing.T) {
 	assert.Equal(t, pgLog.Database, "walle_test", "they should be equal")
 }
 
-func TestParsingShardPartition(t *testing.T) {
-	log := `2021-01-11 15:25:36 EST [56193-3/9939-5708] postgres@baller_test LOG:  duration: 0.020 ms  execute <unnamed>: SELECT * FROM abacus101_shard6.transactions WHERE balance = 13.37`
-
-	scanner := bufio.NewScanner(strings.NewReader(log))
-	logParser := NewPostgresLogParser(scanner)
-	pgLog, err := logParser.Parse()
-	shardPartition, partitionlessQuery := derivedValues(pgLog.Value)
-	assert.Nil(t, err)
-	assert.Equal(t, pgLog.Value, `SELECT * FROM abacus101_shard6.transactions WHERE balance = 13.37`)
-	assert.Equal(t, partitionlessQuery, `SELECT * FROM transactions WHERE balance = 13.37`)
-	assert.Equal(t, shardPartition, `abacus101_shard6`)
-	scrubbedQuery := ScrubQuery(pgLog.Value)
-
-	assert.Equal(t, `SELECT * FROM abacusN_shardN.transactions WHERE balance = N.N`, scrubbedQuery)
-}
-
-func TestParsingShardPartition2(t *testing.T) {
-	log := `2021-01-11 15:25:36 EST [56193-3/9939-5708] postgres@baller_test LOG:  duration: 0.020 ms  execute <unnamed>: SELECT __user.id, __user.guid FROM "yolos_abacus_qa"."users" __user WHERE (__user.is_deleted = $1 OR __user.is_deleted is null) AND __user.guid IN ($2) AND __user.user_guid IN ($3) ORDER BY __user.id ASC LIMIT 1`
-
-	scanner := bufio.NewScanner(strings.NewReader(log))
-	logParser := NewPostgresLogParser(scanner)
-	pgLog, err := logParser.Parse()
-	shardPartition, partitionlessQuery := derivedValues(pgLog.Value)
-	assert.Nil(t, err)
-	assert.Equal(t, pgLog.Value, `SELECT __user.id, __user.guid FROM "yolos_abacus_qa"."users" __user WHERE (__user.is_deleted = $1 OR __user.is_deleted is null) AND __user.guid IN ($2) AND __user.user_guid IN ($3) ORDER BY __user.id ASC LIMIT 1`)
-	assert.Equal(t, partitionlessQuery, `SELECT __user.id, __user.guid FROM "users" __user WHERE (__user.is_deleted = $1 OR __user.is_deleted is null) AND __user.guid IN ($2) AND __user.user_guid IN ($3) ORDER BY __user.id ASC LIMIT 1`)
-	assert.Equal(t, shardPartition, `yolos_abacus_qa`)
-	scrubbedQuery := ScrubQuery(pgLog.Value)
-
-	assert.Equal(t, `SELECT __user.id, __user.guid FROM "yolos_abacus_qa"."users" __user WHERE (__user.is_deleted = $N OR __user.is_deleted is null) AND __user.guid IN ($N) AND __user.user_guid IN ($N) ORDER BY __user.id ASC LIMIT N`, scrubbedQuery)
-}
-
 func TestParsingStatementMultiline(t *testing.T) {
 	log := `2021-02-08 16:09:20 UTC [26820-153/0-3] postgres@bob1989_production LOG:  duration: 2723.044 ms  statement:
         WITH all_sequences AS (
