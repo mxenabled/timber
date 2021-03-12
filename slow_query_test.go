@@ -44,6 +44,22 @@ func TestParsingDerivedWhenNoShard(t *testing.T) {
 	assert.Equal(t, `SELECT * FROM transactions WHERE account_id = 5`, shardlessQuery)
 }
 
+func TestParsingDerivedMultiline(t *testing.T) {
+	value := `SELECT *
+FROM 
+  yolos.brolos
+WHERE
+  yolos.brolos.id = 1`
+
+	shardName, shardlessQuery := DerivedValues(value)
+	assert.Equal(t, "yolos", shardName)
+	assert.Equal(t, `SELECT *
+FROM 
+  brolos
+WHERE
+  brolos.id = 1`, shardlessQuery)
+}
+
 func TestParsingDerivedWhenNoShardCaseInsensitive2(t *testing.T) {
 	value := `select * From transactions t where t.id = 1`
 
