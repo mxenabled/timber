@@ -18,11 +18,14 @@ var (
 func ScrubQuery(sql string) string {
 	sql = RegexSqlString.ReplaceAllString(sql, "'XXX'")
 	sql = RegexNString.ReplaceAllString(sql, "N")
+	// The above is very aggressive filtering
+	// need to be more specific on what gets scrubbed
 
+	// TODO: This is where to filter out the PII data
 	return sql
 }
 
-func parseShardFromValue(value string) string {
+func ParseShardFromValue(value string) string {
 	shardPartition := ""
 	splitStart := strings.Split(value, " FROM ")
 	if len(splitStart) > 1 {
@@ -33,8 +36,8 @@ func parseShardFromValue(value string) string {
 	return shardPartition
 }
 
-func derivedValues(value string) (string, string) {
-	shardPartition := parseShardFromValue(value)
+func DerivedValues(value string) (string, string) {
+	shardPartition := ParseShardFromValue(value)
 	cleanedShardPartition := strings.Replace(shardPartition, "\"", "", -1)
 
 	partitionlessQuery := ""
@@ -59,7 +62,7 @@ type SlowQueryMessage struct {
 }
 
 func LogSlowQuery(logLine *PostgresLogLine) {
-	shardPartition, partitionlessQuery := derivedValues(logLine.Value)
+	shardPartition, partitionlessQuery := DerivedValues(logLine.Value)
 	msg := &SlowQueryMessage{
 		Command:                logLine.LogType,
 		Query:                  ScrubQuery(logLine.Value),

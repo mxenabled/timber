@@ -137,7 +137,7 @@ func TestScrubbingCanFilterSchemaName(t *testing.T) {
 	scanner := bufio.NewScanner(strings.NewReader(log))
 	logParser := NewPostgresLogParser(scanner)
 	pgLog, err := logParser.Parse()
-	_, partitionlessQuery := derivedValues(pgLog.Value)
+	_, partitionlessQuery := DerivedValues(pgLog.Value)
 	assert.Nil(t, err)
 	assert.Equal(t, pgLog.Value, `SELECT * FROM abacus101_shard6.transactions WHERE balance = 13.37`)
 	assert.Equal(t, partitionlessQuery, `SELECT * FROM transactions WHERE balance = 13.37`)
