@@ -13,6 +13,7 @@ import (
 var (
 	RegexSqlString = regexp.MustCompile("'[^']+'")
 	RegexNString   = regexp.MustCompile(`([0-9])+`)
+	RegexHasShard  = regexp.MustCompile(`(?i)from\s+(\w+|"\w+")\.`)
 )
 
 func ScrubQuery(sql string) string {
@@ -26,27 +27,28 @@ func ScrubQuery(sql string) string {
 }
 
 func ParseShardFromValue(value string) string {
-	shardPartition := ""
-	splitStart := strings.Split(value, " FROM ")
-	if len(splitStart) > 1 {
-		splitEnd := strings.Split(splitStart[1], " ")[0]
-		shardPartition = strings.Split(splitEnd, ".")[0]
+	// This assumes a query has only one schema.
+	// Multi-schema queries will not be parsed correctly.
+	shardName := ""
+	possibleShard := RegexHasShard.FindStringSubmatch(value)
+	if len(possibleShard) > 0 {
+		shardName = possibleShard[1]
 	}
 
-	return shardPartition
+	return shardName
 }
 
 func DerivedValues(value string) (string, string) {
-	shardPartition := ParseShardFromValue(value)
-	cleanedShardPartition := strings.Replace(shardPartition, "\"", "", -1)
+	shardName := ParseShardFromValue(value)
+	cleanedShardName := strings.Replace(shardName, "\"", "", -1)
 
-	partitionlessQuery := ""
+	shardlessQuery := value
 
-	// Remove the shardPartition from value so it can be aggregatable
-	if shardPartition != "" {
-		partitionlessQuery = strings.Replace(value, (shardPartition + "."), "", -1)
+	// Remove the shardName from value so it can be aggregatable
+	if shardName != "" {
+		shardlessQuery = strings.Replace(value, (shardName + "."), "", -1)
 	}
-	return cleanedShardPartition, partitionlessQuery
+	return cleanedShardName, shardlessQuery
 }
 
 type SlowQueryMessage struct {
@@ -54,22 +56,22 @@ type SlowQueryMessage struct {
 	Query                  string  `json:"query"`
 	Database               string  `json:"database"`
 	Username               string  `json:"username"`
-	ShardPartition         string  `json:"shard_partition"`
-	PartitionlessQuery     string  `json:"partitionless_query"`
+	ShardName              string  `json:"shard_name"`
+	ShardlessQuery         string  `json:"shardless_query"`
 	DurationInMilliseconds float64 `json:"duration_in_milliseconds"`
 	CreatedAt              string  `json:"created_at"`
 	Type                   string  `json:"type"`
 }
 
 func LogSlowQuery(logLine *PostgresLogLine) {
-	shardPartition, partitionlessQuery := DerivedValues(logLine.Value)
+	shardName, shardlessQuery := DerivedValues(logLine.Value)
 	msg := &SlowQueryMessage{
 		Command:                logLine.LogType,
 		Query:                  ScrubQuery(logLine.Value),
 		Database:               logLine.Database,
 		Username:               logLine.Username,
-		ShardPartition:         shardPartition,
-		PartitionlessQuery:     ScrubQuery(partitionlessQuery),
+		ShardName:              shardName,
+		ShardlessQuery:         ScrubQuery(shardlessQuery),
 		DurationInMilliseconds: float64(logLine.Duration.Microseconds()) / 1000.0,
 		CreatedAt:              time.Now().UTC().String(),
 		Type:                   "timber.postgres_slow_query",
