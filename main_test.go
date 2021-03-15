@@ -137,8 +137,10 @@ func TestScrubbingCanFilterSchemaName(t *testing.T) {
 	scanner := bufio.NewScanner(strings.NewReader(log))
 	logParser := NewPostgresLogParser(scanner)
 	pgLog, err := logParser.Parse()
+	_, shardlessQuery := DerivedValues(pgLog.Value)
 	assert.Nil(t, err)
 	assert.Equal(t, pgLog.Value, `SELECT * FROM abacus101_shard6.transactions WHERE balance = 13.37`)
+	assert.Equal(t, shardlessQuery, `SELECT * FROM transactions WHERE balance = 13.37`)
 
 	scrubbedQuery := ScrubQuery(pgLog.Value)
 	//TODO: Make this not strip the shard information.
