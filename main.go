@@ -160,7 +160,6 @@ func (self *PostgresLogParser) parseLogBuffer() (*PostgresLogLine, error) {
 	user, database := parseUserAndDatabase(self.buffer)
 	logType, statementName := parseLogTypeWithStatementName(self.buffer)
 	value := parseValueFromBuffer(self.buffer)
-	// duration := parseDuration(self.buffer)
 
 	log := &PostgresLogLine{
 		Timestamp:     timestamp,
@@ -227,7 +226,7 @@ var (
 	loggerSourceType string
 	displayVersion   bool
 
-	version string = "0.0.2"
+	version string = "0.0.4"
 )
 
 func main() {
