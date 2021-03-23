@@ -125,7 +125,7 @@ func TestScrubbingCanFilterDollarAmounts(t *testing.T) {
 	logParser := NewPostgresLogParser(scanner)
 	pgLog, err := logParser.Parse()
 	assert.Nil(t, err)
-	assert.Equal(t, `SELECT * FROM transactions WHERE balance = '13.37'`,  pgLog.Value)
+	assert.Equal(t, `SELECT * FROM transactions WHERE balance = '13.37'`, pgLog.Value)
 
 	scrubbedQuery := ScrubQuery(pgLog.Value)
 	assert.Equal(t, `SELECT * FROM transactions WHERE balance = 'xxx'`, scrubbedQuery)
