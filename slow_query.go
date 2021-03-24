@@ -11,11 +11,11 @@ import (
 )
 
 var (
-	RegexSqlString  = regexp.MustCompile("('[^']+')") //Everything inside strings
+	RegexSqlString  = regexp.MustCompile("('([^']|'')+')") //Everything inside strings
 	RegexHasShard   = regexp.MustCompile(`(?i)from\s+(\w+|"\w+")\.`)
-	RegexIsDateTime = regexp.MustCompile(`'(\d{4}-\d\d-\d\d \d\d:\d\d:\d\d.\d{6})'`)
-	RegexGuidType   = regexp.MustCompile(`(?i)'(\w{3}-\w{8}-\w{4}-\w{4}-\w{4}-\w{12})'`)
-	RegexIsBool     = regexp.MustCompile(`'(t|f)'`)
+	RegexIsDateTime = regexp.MustCompile(`^'(\d{4}-\d\d-\d\d \d\d:\d\d:\d\d.\d{6})'$`)
+	RegexGuidType   = regexp.MustCompile(`(?i)^'([A-Z]{3}-\w{8}-\w{4}-\w{4}-\w{4}-\w{12})'$`)
+	RegexIsBool     = regexp.MustCompile(`^'(t|f)'$`)
 )
 
 func ScrubQuery(sql string) string {
