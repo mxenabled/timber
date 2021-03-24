@@ -44,6 +44,14 @@ func TestParsingDerivedWhenNoShard(t *testing.T) {
 	assert.Equal(t, `SELECT * FROM transactions WHERE account_id = 5`, shardlessQuery)
 }
 
+func TestFloatNotFiltered(t *testing.T) {
+	value := `SELECT * FROM transactions WHERE amount = 5.15`
+
+	shardName, shardlessQuery := DerivedValues(value)
+	assert.Equal(t, "", shardName)
+	assert.Equal(t, `SELECT * FROM transactions WHERE amount = 5.15`, shardlessQuery)
+}
+
 func TestParsingDerivedWhenNoShardCaseInsensitive(t *testing.T) {
 	value := `select * From transactions t where t.id = 1`
 
@@ -68,13 +76,54 @@ WHERE
   brolos.id = 1`, shardlessQuery)
 }
 
-
 func TestParsingSimpleShard(t *testing.T) {
 	value := `select * from boys.to_mens`
 
 	shardName, shardlessQuery := DerivedValues(value)
 	assert.Equal(t, "boys", shardName)
 	assert.Equal(t, `select * from to_mens`, shardlessQuery)
+}
+
+func TestDateTimeWhitelist(t *testing.T) {
+	value := `'2021-03-13 11:45:00.000000'` //correct format
+	wv := isWhitelisted(value)
+	assert.True(t, wv)
+
+	value2 := `'2021-03-13 6:45:00.000000'` //incorrect datetime format
+	wv2 := isWhitelisted(value2)
+	assert.False(t, wv2)
+}
+
+func TestGuidWhitelist(t *testing.T) {
+	value := `'USR-f164af58-bb51-47ed-aa35-368ae3f46648'` //correct format
+	wv := isWhitelisted(value)
+	assert.True(t, wv)
+
+	value2 := `'USR-f164af58-bb51-aa35-368ae3f46648'` //incorrect guid format
+	wv2 := isWhitelisted(value2)
+	assert.False(t, wv2)
+
+	value3 := `'This is my guid USR-f164af58-bb54-47ed-aa35-368ae3f46648'` // Valid GUID but not issolated so string will be filtered to 'xxx'
+	wv3 := isWhitelisted(value3)
+	assert.False(t, wv3)
+}
+
+func TestBoolWhitelist(t *testing.T) {
+	value := `'t'` //correct format
+	wv := isWhitelisted(value)
+	assert.True(t, wv)
+
+	value1 := `'f'` //correct format
+	wv1 := isWhitelisted(value1)
+	assert.True(t, wv1)
+
+	value2 := `'tf'` //incorrect bool format
+	wv2 := isWhitelisted(value2)
+	assert.False(t, wv2)
+
+	value3 := `'faulty'` //incorrect bool format, still has f or t in string
+	wv3 := isWhitelisted(value3)
+	assert.False(t, wv3)
 }
 
 func TestParsingFullQuery(t *testing.T) {
