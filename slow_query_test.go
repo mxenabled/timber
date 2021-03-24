@@ -126,6 +126,29 @@ func TestBoolWhitelist(t *testing.T) {
 	assert.False(t, wv3)
 }
 
+func TestScrubChecker(t *testing.T) {
+	value := `SELECT * between '2021-03-13 11:45:00.000000' AND '2021-03-13 12:15:00.000000' where '7.82' and description = 'This is hopefully scrubbed.'`
+
+	res := ScrubQuery(value)
+	assert.Equal(t, `SELECT * between '2021-03-13 11:45:00.000000' AND '2021-03-13 12:15:00.000000' where 'xxx' and description = 'xxx'`, res)
+
+	value2 := `'7.28'`
+	res2 := scrubChecker(value2)
+	assert.Equal(t, `'xxx'`, res2)
+
+	value3 := `'USR-f164af58-bb51-47ed-aa35-368ae3f46648'`
+	res3 := scrubChecker(value3)
+	assert.Equal(t, `'USR-f164af58-bb51-47ed-aa35-368ae3f46648'`, res3)
+
+	value4 := `'2021-03-13 11:45:00.000000'`
+	res4 := scrubChecker(value4)
+	assert.Equal(t, `'2021-03-13 11:45:00.000000'`, res4)
+
+	value5 := `'Random string as a value'`
+	res5 := scrubChecker(value5)
+	assert.Equal(t, `'xxx'`, res5)
+}
+
 func TestParsingFullQuery(t *testing.T) {
 	value := `SELECT  "abacus3_qa"."transactions"."guid" FROM "abacus3_qa"."transactions" WHERE ("abacus3_qa"."transactions"."date" BETWEEN '2021-03-13 11:45:00.000000' AND '2021-03-13 12:15:00.000000') AND "abacus3_qa"."transactions"."account_id" = 252641 AND "abacus3_qa"."transactions"."amount" = '7.82' AND "abacus3_qa"."transactions"."is_deleted" = 'f' AND "abacus3_qa"."transactions"."status" = 1 AND "abacus3_qa"."transactions"."transaction_type" = 2 AND "abacus3_qa"."transactions"."user_guid" = 'USR-f164af58-bb51-47ed-aa35-368ae3f46648' AND "abacus3_qa"."transactions"."merchant_guid" IS NULL AND "abacus3_qa"."transactions"."parent_id" IS NULL AND "abacus3_qa"."transactions"."description" = 'Children''s Hospital'  ORDER BY "abacus3_qa"."transactions"."id" ASC LIMIT 10`
 
