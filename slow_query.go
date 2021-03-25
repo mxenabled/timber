@@ -11,18 +11,38 @@ import (
 )
 
 var (
-	RegexSqlString = regexp.MustCompile("'[^']+'")
-	RegexNString   = regexp.MustCompile(`([0-9])+`)
-	RegexHasShard  = regexp.MustCompile(`(?i)from\s+(\w+|"\w+")\.`)
+	RegexSqlString  = regexp.MustCompile("('([^']|'')+')") //Everything inside strings
+	RegexHasShard   = regexp.MustCompile(`(?i)from\s+(\w+|"\w+")\.`)
+	RegexIsDateTime = regexp.MustCompile(`^'(\d{4}-\d\d-\d\d \d\d:\d\d:\d\d.\d{6})'$`)
+	RegexGuidType   = regexp.MustCompile(`(?i)^'([A-Z]{3}-\w{8}-\w{4}-\w{4}-\w{4}-\w{12})'$`)
+	RegexIsBool     = regexp.MustCompile(`^'(t|f)'$`)
 )
 
 func ScrubQuery(sql string) string {
-	sql = RegexSqlString.ReplaceAllString(sql, "'XXX'")
-	sql = RegexNString.ReplaceAllString(sql, "N")
-	// The above is very aggressive filtering
-	// need to be more specific on what gets scrubbed
+	scrubbed := RegexSqlString.ReplaceAllStringFunc(sql, scrubChecker)
+	return scrubbed
+}
 
-	// TODO: This is where to filter out the PII data
+func isWhitelisted(value string) bool {
+	// datetime
+	isDateTime := RegexIsDateTime.MatchString(value)
+
+	// different guids
+	isGuidType := RegexGuidType.MatchString(value)
+
+	// Boolean strings of t/f
+	isBool := RegexIsBool.MatchString(value)
+
+	return isDateTime || isGuidType || isBool
+}
+
+func scrubChecker(st string) string {
+	sql := st
+
+	if !isWhitelisted(st) {
+		sql = "'xxx'"
+	}
+
 	return sql
 }
 

@@ -102,47 +102,47 @@ func TestScrubbingCanFilterStringsAndDigits(t *testing.T) {
 	assert.Equal(t, pgLog.Value, `SELECT * FROM transactions WHERE guid IN ('TRN-123', 'TRN-234') AND account_id IN (1, 2, 4, 5)`)
 
 	scrubbedQuery := ScrubQuery(pgLog.Value)
-	assert.Equal(t, `SELECT * FROM transactions WHERE guid IN ('XXX', 'XXX') AND account_id IN (N, N, N, N)`, scrubbedQuery)
+	assert.Equal(t, `SELECT * FROM transactions WHERE guid IN ('xxx', 'xxx') AND account_id IN (1, 2, 4, 5)`, scrubbedQuery)
 }
 
 func TestScrubbingCanFilterIdEquals(t *testing.T) {
-	log := `2021-01-11 15:25:36 EST [56193-3/9939-5708] postgres@baller_test LOG:  duration: 0.020 ms  execute <unnamed>: SELECT * FROM transactions WHERE account_id = 5`
+	log := `2021-01-11 15:25:36 EST [56193-3/9939-5708] postgres@baller_test LOG:  duration: 0.020 ms  execute <unnamed>: SELECT * FROM transactions WHERE account_id = '5'`
 
 	scanner := bufio.NewScanner(strings.NewReader(log))
 	logParser := NewPostgresLogParser(scanner)
 	pgLog, err := logParser.Parse()
 	assert.Nil(t, err)
-	assert.Equal(t, pgLog.Value, `SELECT * FROM transactions WHERE account_id = 5`)
+	assert.Equal(t, pgLog.Value, `SELECT * FROM transactions WHERE account_id = '5'`)
 
 	scrubbedQuery := ScrubQuery(pgLog.Value)
-	assert.Equal(t, `SELECT * FROM transactions WHERE account_id = N`, scrubbedQuery)
+	assert.Equal(t, `SELECT * FROM transactions WHERE account_id = 'xxx'`, scrubbedQuery)
 }
 
 func TestScrubbingCanFilterDollarAmounts(t *testing.T) {
-	log := `2021-01-11 15:25:36 EST [56193-3/9939-5708] postgres@baller_test LOG:  duration: 0.020 ms  execute <unnamed>: SELECT * FROM transactions WHERE balance = 13.37`
+	log := `2021-01-11 15:25:36 EST [56193-3/9939-5708] postgres@baller_test LOG:  duration: 0.020 ms  execute <unnamed>: SELECT * FROM transactions WHERE balance = '13.37'`
 
 	scanner := bufio.NewScanner(strings.NewReader(log))
 	logParser := NewPostgresLogParser(scanner)
 	pgLog, err := logParser.Parse()
 	assert.Nil(t, err)
-	assert.Equal(t, pgLog.Value, `SELECT * FROM transactions WHERE balance = 13.37`)
+	assert.Equal(t, `SELECT * FROM transactions WHERE balance = '13.37'`, pgLog.Value)
 
 	scrubbedQuery := ScrubQuery(pgLog.Value)
-	assert.Equal(t, `SELECT * FROM transactions WHERE balance = N.N`, scrubbedQuery)
+	assert.Equal(t, `SELECT * FROM transactions WHERE balance = 'xxx'`, scrubbedQuery)
 }
 
 func TestScrubbingCanFilterSchemaName(t *testing.T) {
-	log := `2021-01-11 15:25:36 EST [56193-3/9939-5708] postgres@baller_test LOG:  duration: 0.020 ms  execute <unnamed>: SELECT * FROM abacus101_shard6.transactions WHERE balance = 13.37`
+	log := `2021-01-11 15:25:36 EST [56193-3/9939-5708] postgres@baller_test LOG:  duration: 0.020 ms  execute <unnamed>: SELECT * FROM abacus101_shard6.transactions WHERE balance = '13.37'`
 
 	scanner := bufio.NewScanner(strings.NewReader(log))
 	logParser := NewPostgresLogParser(scanner)
 	pgLog, err := logParser.Parse()
 	_, shardlessQuery := DerivedValues(pgLog.Value)
 	assert.Nil(t, err)
-	assert.Equal(t, pgLog.Value, `SELECT * FROM abacus101_shard6.transactions WHERE balance = 13.37`)
-	assert.Equal(t, shardlessQuery, `SELECT * FROM transactions WHERE balance = 13.37`)
+	assert.Equal(t, pgLog.Value, `SELECT * FROM abacus101_shard6.transactions WHERE balance = '13.37'`)
+	assert.Equal(t, shardlessQuery, `SELECT * FROM transactions WHERE balance = '13.37'`)
 
 	scrubbedQuery := ScrubQuery(pgLog.Value)
 	//TODO: Make this not strip the shard information.
-	assert.Equal(t, `SELECT * FROM abacusN_shardN.transactions WHERE balance = N.N`, scrubbedQuery)
+	assert.Equal(t, `SELECT * FROM abacus101_shard6.transactions WHERE balance = 'xxx'`, scrubbedQuery)
 }

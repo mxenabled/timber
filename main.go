@@ -159,7 +159,7 @@ func (self *PostgresLogParser) parseLogBuffer() (*PostgresLogLine, error) {
 	timestamp := parseTime(self.buffer)
 	user, database := parseUserAndDatabase(self.buffer)
 	logType, statementName := parseLogTypeWithStatementName(self.buffer)
-	value := parseValuesFromBuffer(self.buffer)
+	value := parseValueFromBuffer(self.buffer)
 
 	log := &PostgresLogLine{
 		Timestamp:     timestamp,
@@ -194,14 +194,13 @@ func parseLogTypeWithStatementName(buffer string) (string, string) {
 }
 
 // Parse value from buffer
-func parseValuesFromBuffer(buffer string) string {
+func parseValueFromBuffer(buffer string) string {
 	partial := strings.Split(buffer, " ms  ")[1]
 	index := strings.Index(partial, ": ")
 	value := strings.SplitN(partial, ":", 2)[1]
 	if index > 0 {
 		value = strings.SplitN(partial, ": ", 2)[1]
 	}
-
 	return value
 }
 
@@ -227,7 +226,7 @@ var (
 	loggerSourceType string
 	displayVersion   bool
 
-	version string = "0.0.3"
+	version string = "0.0.4"
 )
 
 func main() {
