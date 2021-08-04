@@ -5,6 +5,9 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"io"
+	"log"
+	"net"
 	"os"
 	"regexp"
 	"strings"
@@ -15,10 +18,10 @@ var (
 	RegexBeginningOfLine = regexp.MustCompile(`^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}.*([A-Z]+):`)
 )
 
-func HandlePostgresLogLine(logLine *PostgresLogLine) {
+func HandlePostgresLogLine(logLine *PostgresLogLine, logger io.Writer) {
 	switch logLine.LogType {
 	case "statement", "execute", "parse", "bind":
-		LogSlowQuery(logLine)
+		LogSlowQuery(logLine, logger)
 	case "plan":
 		// NOTHING FOR NOW
 	}
@@ -224,11 +227,13 @@ func isNewLogLine(line string) bool {
 
 var (
 	loggerSourceType string
+	tcpOutUrl        string
 	displayVersion   bool
 
 	hostname string = ""
 
-	version string = "0.0.6"
+	version   string = "0.0.6"
+	tcpLogger *TCPLogger
 )
 
 // If we add more options, change this into a configuration object.
@@ -243,6 +248,7 @@ func HostName() string {
 
 func main() {
 	flag.StringVar(&loggerSourceType, "logger-source-type", "stdin", "supports stdin for piped input and journald")
+	flag.StringVar(&tcpOutUrl, "tcp-out-url", "", "if set, will set up a log sink to given tcp destination")
 	flag.BoolVar(&displayVersion, "version", false, "show the version and exit")
 	flag.Parse()
 
@@ -270,6 +276,22 @@ func main() {
 		return
 	}
 
+	if tcpOutUrl != "" {
+		log.Println("Creating TCPLogger...")
+		conn, err := net.Dial("tcp", tcpOutUrl)
+		if err != nil {
+			panic(err)
+		}
+
+		logger := NewTCPLogger(conn, 10)
+		tcpLogger = &logger
+		if err != nil {
+			panic(err)
+		}
+		tcpLogger.Start()
+		defer tcpLogger.Close()
+	}
+
 	logParser := NewPostgresLogParser(logScanner)
 	for {
 		pgLogLine, err := logParser.Parse()
@@ -285,6 +307,10 @@ func main() {
 			continue
 		}
 
-		HandlePostgresLogLine(pgLogLine)
+		if tcpOutUrl != "" {
+			HandlePostgresLogLine(pgLogLine, tcpLogger)
+		} else {
+			HandlePostgresLogLine(pgLogLine, nil)
+		}
 	}
 }

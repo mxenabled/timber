@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"regexp"
 	"strings"
 	"time"
@@ -85,7 +86,7 @@ type SlowQueryMessage struct {
 	TimberVersion          string  `json:"timber_version"`
 }
 
-func LogSlowQuery(logLine *PostgresLogLine) {
+func LogSlowQuery(logLine *PostgresLogLine, logger io.Writer) {
 	shardName, shardlessQuery := DerivedValues(logLine.Value)
 
 	msg := &SlowQueryMessage{
@@ -108,7 +109,10 @@ func LogSlowQuery(logLine *PostgresLogLine) {
 		return
 	}
 
-	SendToKibana(bytes)
-
+	if logger != nil {
+		logger.Write(bytes)
+	} else {
+		SendToKibana(bytes)
+	}
 	pretty.Println(string(bytes))
 }
