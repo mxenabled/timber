@@ -81,10 +81,13 @@ type SlowQueryMessage struct {
 	DurationInMilliseconds float64 `json:"duration_in_milliseconds"`
 	CreatedAt              string  `json:"created_at"`
 	Type                   string  `json:"type"`
+	HostName               string  `json:"hostname"`
+	TimberVersion          string  `json:"timber_version"`
 }
 
 func LogSlowQuery(logLine *PostgresLogLine) {
 	shardName, shardlessQuery := DerivedValues(logLine.Value)
+
 	msg := &SlowQueryMessage{
 		Command:                logLine.LogType,
 		Query:                  ScrubQuery(logLine.Value),
@@ -95,6 +98,8 @@ func LogSlowQuery(logLine *PostgresLogLine) {
 		DurationInMilliseconds: float64(logLine.Duration.Microseconds()) / 1000.0,
 		CreatedAt:              time.Now().UTC().String(),
 		Type:                   "timber.postgres_slow_query",
+		HostName:               HostName(),
+		TimberVersion:          TimberVersion(),
 	}
 
 	bytes, err := json.Marshal(msg)

@@ -226,13 +226,27 @@ var (
 	loggerSourceType string
 	displayVersion   bool
 
-	version string = "0.0.5"
+	hostname string = ""
+
+	version string = "0.0.6"
 )
+
+// If we add more options, change this into a configuration object.
+
+func TimberVersion() string {
+	return version
+}
+
+func HostName() string {
+	return hostname
+}
 
 func main() {
 	flag.StringVar(&loggerSourceType, "logger-source-type", "stdin", "supports stdin for piped input and journald")
 	flag.BoolVar(&displayVersion, "version", false, "show the version and exit")
 	flag.Parse()
+
+	hostname, _ = os.Hostname()
 
 	if displayVersion {
 		fmt.Println(version)
