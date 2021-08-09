@@ -30,14 +30,19 @@ func NewTCPLogger(conn net.Conn, retryLimit int) TCPLogger {
 		retryLimit:    retryLimit,
 		sleepDuration: time.Minute,
 
-		logLines: make(chan []byte, 1000), // Should this be a buffered channel?
+		logLines: make(chan []byte, 1000),
 	}
 }
 
 // Write pushes bytes given into local chan to flush out to connection.
 func (t *TCPLogger) Write(p []byte) (n int, err error) {
-	t.logLines <- p
-	return len(p), nil
+	select {
+	case t.logLines <- p:
+		return len(p), nil
+	default:
+		log.Println("Error: Could not log to TCP output because the queue is full")
+		return 0, nil // doesn't look like we care about the response
+	}
 }
 
 // Start call this to start the go routine that will output
@@ -52,7 +57,6 @@ func (t *TCPLogger) Start() {
 			if err != nil {
 				t.handleConnError(err, logLine)
 			} else {
-				log.Println("But this is resetting it..?")
 				t.retries = 0
 			}
 		}
@@ -65,8 +69,8 @@ func (t *TCPLogger) handleConnError(err error, b []byte) {
 	}
 
 	if t.retries <= t.retryLimit {
-		t.retries += 1
 		t.logLines <- b
+		t.retries += 1
 	} else {
 		log.Println("Retry limit met on TCPLogger.. sleeping for a minute before continuing.")
 		t.logLines <- b
@@ -93,14 +97,22 @@ func (t *TCPLogger) swapConn(conn net.Conn) {
 // Close defer this to ensure any existing messages in the channel that have not yet made it
 // to connection destination get pushed before closing connection.
 func (t TCPLogger) Close() {
+	ticker := time.NewTicker(time.Second * 5)
+
 	for len(t.logLines) > 0 {
-		if t.retries > t.retryLimit {
-			log.Printf("Retry limit met in close function.. %d message(s) will be lost!\n", len(t.logLines))
-			break
+		select {
+		case <-ticker.C:
+			log.Println("Error: Time limit exceeded for graceful shutdown of TCPLogger!")
+			t.conn.Close()
+			return
+		default:
+			if t.retries > t.retryLimit {
+				log.Printf("Retry limit met in close function.. %d message(s) will be lost!\n", len(t.logLines))
+				break
+			}
+			time.Sleep(time.Millisecond * 50)
 		}
-		time.Sleep(time.Millisecond * 50)
 	}
-	// t.done <- true
 	t.conn.Close()
 }
 
