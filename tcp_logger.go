@@ -64,6 +64,7 @@ func (t *TCPLogger) Start() {
 }
 
 func (t *TCPLogger) handleConnError(err error, b []byte) {
+	log.Println("Error while writing to TCPLogger.conn:", err.Error())
 	if err == os.ErrDeadlineExceeded || err == io.EOF {
 		t.RetryConnection()
 	}
@@ -75,14 +76,17 @@ func (t *TCPLogger) handleConnError(err error, b []byte) {
 		log.Println("Retry limit met on TCPLogger.. sleeping for a minute before continuing.")
 		t.logLines <- b
 		time.Sleep(t.sleepDuration)
+		t.RetryConnection()
 		t.retries = 0
 	}
 }
 
 // RetryConnection will attempt to reestablish connection to net.Conn
 func (t *TCPLogger) RetryConnection() error {
+	log.Println("Attempting tcp connection reestablish...")
 	conn, err := net.Dial(t.conn.RemoteAddr().Network(), t.conn.RemoteAddr().String())
 	if err != nil {
+		log.Println("Error reconnecting:", err)
 		return err
 	}
 	t.swapConn(conn)
