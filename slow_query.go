@@ -12,11 +12,12 @@ import (
 )
 
 var (
-	RegexSqlString  = regexp.MustCompile("('([^']|'')+')") //Everything inside strings
-	RegexHasShard   = regexp.MustCompile(`(?i)from\s+(\w+|"\w+")\.`)
-	RegexIsDateTime = regexp.MustCompile(`^'(\d{4}-\d\d-\d\d \d\d:\d\d:\d\d.\d{6})'$`)
-	RegexGuidType   = regexp.MustCompile(`(?i)^'([A-Z]{3}-\w{8}-\w{4}-\w{4}-\w{4}-\w{12})'$`)
-	RegexIsBool     = regexp.MustCompile(`^'(t|f)'$`)
+	RegexSqlString     = regexp.MustCompile("('([^']|'')+')") //Everything inside strings
+	RegexHasShard      = regexp.MustCompile(`(?i)from\s+(\w+|"\w+")\.`)
+	RegexInserHasShard = regexp.MustCompile(`(?i)into\s+(\w+|"\w+")\.`)
+	RegexIsDateTime    = regexp.MustCompile(`^'(\d{4}-\d\d-\d\d \d\d:\d\d:\d\d.\d{6})'$`)
+	RegexGuidType      = regexp.MustCompile(`(?i)^'([A-Z]{3}-\w{8}-\w{4}-\w{4}-\w{4}-\w{12})'$`)
+	RegexIsBool        = regexp.MustCompile(`^'(t|f)'$`)
 )
 
 func ScrubQuery(sql string) string {
@@ -52,6 +53,13 @@ func ParseShardFromValue(value string) string {
 	// Multi-schema queries will not be parsed correctly.
 	shardName := ""
 	possibleShard := RegexHasShard.FindStringSubmatch(value)
+
+	// no matches for shard
+	if len(possibleShard) == 0 {
+		// try different matcher
+		possibleShard = RegexInserHasShard.FindStringSubmatch(value)
+	}
+
 	if len(possibleShard) > 0 {
 		shardName = possibleShard[1]
 	}

@@ -36,6 +36,16 @@ func TestParsingDerivedFromValueRubyFormat(t *testing.T) {
 	assert.Equal(t, shardName, `abacustody19_qa`)
 }
 
+func TestParsingDerivedFromValueInsertFormat(t *testing.T) {
+	value := `INSERT INTO "abacus1003_production_shard020"."transactions"
+ ("id","guid","date","amount","transaction_type","created_at","updated_at","feed_description","memo","description","job_guid","external_guid","account_id","revision","is_personal","is_flagged","has_been_viewed"`
+	shardName, shardlessQuery := DerivedValues(value)
+
+	assert.Equal(t, shardlessQuery, `INSERT INTO "transactions"
+ ("id","guid","date","amount","transaction_type","created_at","updated_at","feed_description","memo","description","job_guid","external_guid","account_id","revision","is_personal","is_flagged","has_been_viewed"`)
+	assert.Equal(t, shardName, `abacus1003_production_shard020`)
+}
+
 func TestParsingDerivedWhenNoShard(t *testing.T) {
 	value := `SELECT * FROM transactions WHERE account_id = 5`
 
