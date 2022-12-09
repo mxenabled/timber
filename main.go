@@ -56,6 +56,7 @@ type PostgresLogParser struct {
 	logScanner  LogScanner
 	buffer      string
 	logLineChan chan *LogLine
+	parseTicker *time.Ticker
 }
 
 func NewPostgresLogParser(logScanner LogScanner) *PostgresLogParser {
@@ -74,6 +75,7 @@ func NewPostgresLogParser(logScanner LogScanner) *PostgresLogParser {
 		buffer:      "",
 		logLineChan: logLineChan,
 		logScanner:  logScanner,
+		parseTicker: time.NewTicker(time.Second),
 	}
 }
 
@@ -92,11 +94,9 @@ var (
 // Lastly, postgres doesn't hesitate when it logs lines, so we can also include a
 // timer to detect the end of a postgres log line.
 func (self *PostgresLogParser) Parse() (*PostgresLogLine, error) {
-	logTimeout := time.NewTimer(time.Second)
-
 	for {
 		// Reset the log line timeout timer.
-		logTimeout.Reset(time.Second)
+		self.parseTicker.Reset(time.Second)
 
 		// Collect a single log line.
 		select {
@@ -130,7 +130,7 @@ func (self *PostgresLogParser) Parse() (*PostgresLogLine, error) {
 				self.buffer += rawLine
 			}
 
-		case <-logTimeout.C:
+		case <-self.parseTicker.C:
 			if len(self.buffer) == 0 {
 				continue
 			}

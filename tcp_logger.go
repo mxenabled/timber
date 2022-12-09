@@ -100,7 +100,7 @@ func (t *TCPLogger) swapConn(conn net.Conn) {
 
 // Close defer this to ensure any existing messages in the channel that have not yet made it
 // to connection destination get pushed before closing connection.
-func (t TCPLogger) Close() {
+func (t *TCPLogger) Close() {
 	ticker := time.NewTicker(time.Second * 5)
 
 	for len(t.logLines) > 0 {
